@@ -1,0 +1,236 @@
+selfNode = <{ id: "SELF", semanticId: "", contract: { in: ["spouseOf"], out: ["spouseOf", "parentOf"] }, type: "person", fullName: "SELF", dateOfBirth: "", biography: "" }>
+
+addChild := @action {
+  pipeline:
+    -> @runtime.addNode(
+         @runtime.generateNodeId("person"),
+         {
+           semanticId: @runtime.generateValueId("person"),
+           contract: { in: ["parentOf"], out: ["spouseOf", "parentOf"] },
+           id: @runtime.generateValueId("person"),
+           type: "person",
+           firstName: payload.firstName,
+           middleNames: payload.middleNames,
+           lastName: payload.lastName,
+           suffix: payload.suffix,
+           fullName: payload.fullName,
+           dateOfBirth: payload.dateOfBirth,
+           birthPlace: payload.birthPlace,
+           lifeStatus: payload.lifeStatus,
+           deathDate: payload.deathDate,
+           deathPlace: payload.deathPlace,
+           gender: payload.gender,
+           biography: payload.biography,
+           notes: payload.notes
+         },
+         {},
+         {
+           generation: "child",
+           order: @runtime.nextOrder(),
+           role: "person"
+         }
+       )
+    -> @graft.branch(from, "parentOf", to, { kind: "birth" })
+}
+
+claimChild := @action {
+  pipeline:
+    -> @graft.branch(from, "parentOf", to, { kind: "birth" })
+}
+
+claimStepChild := @action {
+  pipeline:
+    -> @graft.branch(from, "parentOf", to, { kind: "step" })
+}
+
+unclaimChild := @action {
+  pipeline:
+    -> @prune.branch(from, "parentOf", to, { kind: "birth" })
+}
+
+unclaimStepChild := @action {
+  pipeline:
+    -> @prune.branch(from, "parentOf", to, { kind: "step" })
+}
+
+addSpouse := @action {
+  guard: @derive.edgeCount {
+    node: from
+    relation: "spouseOf"
+    direction: "outgoing"
+  } < 1
+  pipeline:
+    -> @runtime.addNode(
+         @runtime.generateNodeId("person"),
+         {
+           semanticId: @runtime.generateValueId("person"),
+           contract: { in: ["spouseOf"], out: ["spouseOf", "parentOf"] },
+           id: @runtime.generateValueId("person"),
+           type: "person",
+           firstName: payload.firstName,
+           middleNames: payload.middleNames,
+           lastName: payload.lastName,
+           suffix: payload.suffix,
+           fullName: payload.fullName,
+           dateOfBirth: payload.dateOfBirth,
+           birthPlace: payload.birthPlace,
+           lifeStatus: payload.lifeStatus,
+           deathDate: payload.deathDate,
+           deathPlace: payload.deathPlace,
+           gender: payload.gender,
+           biography: payload.biography,
+           notes: payload.notes
+         },
+         {},
+         { order: @runtime.nextOrder(), role: "person" }
+       )
+    -> @graft.branch(from, "spouseOf", to, { active: true })
+    -> @graft.branch(to, "spouseOf", from, { active: true })
+}
+
+linkSpouse := @action {
+  guard:
+    (from !== to) &&
+    (@derive.edgeCount { node: from relation: "spouseOf" direction: "outgoing" } < 1) &&
+    (@derive.edgeCount { node: to relation: "spouseOf" direction: "outgoing" } < 1)
+  pipeline:
+    -> @graft.branch(from, "spouseOf", to, { active: true })
+    -> @graft.branch(to, "spouseOf", from, { active: true })
+}
+
+addParent := @action {
+  guard: @derive.edgeCount {
+    node: from
+    relation: "parentOf"
+    direction: "incoming"
+    where: edge.meta.kind == "birth"
+  } < 2
+  pipeline:
+    -> @runtime.addNode(
+         @runtime.generateNodeId("person"),
+         {
+           semanticId: @runtime.generateValueId("person"),
+           contract: { in: ["spouseOf"], out: ["spouseOf", "parentOf"] },
+           id: @runtime.generateValueId("person"),
+           type: "person",
+           firstName: payload.firstName,
+           middleNames: payload.middleNames,
+           lastName: payload.lastName,
+           suffix: payload.suffix,
+           fullName: payload.fullName,
+           dateOfBirth: payload.dateOfBirth,
+           birthPlace: payload.birthPlace,
+           lifeStatus: payload.lifeStatus,
+           deathDate: payload.deathDate,
+           deathPlace: payload.deathPlace,
+           gender: payload.gender,
+           biography: payload.biography,
+           notes: payload.notes
+         },
+         {},
+         {
+           generation: "parent",
+           order: @runtime.nextOrder(),
+           role: "person"
+         }
+       )
+    -> @graft.branch(to, "parentOf", from, { kind: "birth" })
+}
+
+linkParent := @action {
+  guard: (from !== to) && (
+    @derive.edgeCount {
+      node: from
+      relation: "parentOf"
+      direction: "incoming"
+      where: edge.meta.kind == "birth"
+    } < 2
+  )
+  pipeline:
+    -> @graft.branch(to, "parentOf", from, { kind: "birth" })
+}
+
+editPerson := @action {
+  pipeline:
+    -> @runtime.updateNodeValue(to, { firstName: payload.firstName, middleNames: payload.middleNames, lastName: payload.lastName, suffix: payload.suffix, fullName: payload.fullName, dateOfBirth: payload.dateOfBirth, birthPlace: payload.birthPlace, lifeStatus: payload.lifeStatus, deathDate: payload.deathDate, deathPlace: payload.deathPlace, gender: payload.gender, biography: payload.biography, notes: payload.notes })
+}
+
+deletePerson := @action {
+  guard: @derive.meta {
+    node: to
+    key: "role"
+  } !== "root"
+  pipeline:
+    -> @runtime.deleteNode(to)
+}
+
+@seed:
+  nodes: [selfNode]
+  edges: []
+  state: {}
+  meta: {}
+  root: selfNode
+
+family := @seed
+  -> @graft.meta(selfNode, "status", focus)
+  -> @graft.meta(selfNode, "generation", 0)
+  -> @graft.meta(selfNode, "role", "root")
+  -> @graft.meta(selfNode, "order", 1)
+
+familyGraph = family <> @project(format: "graph")
+
+familyDetail = family <> @project {
+  format: "detail"
+  focus: selfNode
+  include: [id, label, type, value, state, meta, relationships, status]
+}
+
+familyRelationships = family <> @project {
+  format: "relationships"
+  focus: selfNode
+  include: [id, label, value, state, meta, status]
+}
+
+familySiblings = family <> @project {
+  format: "siblings"
+  focus: selfNode
+  include: [id, label, value, state, meta, status]
+}
+
+familyAncestors = family <> @project {
+  format: "ancestors"
+  focus: selfNode
+  depth: 2
+  include: [id, label, value, state, meta, status]
+}
+
+familyDescendants = family <> @project {
+  format: "descendants"
+  focus: selfNode
+  depth: 2
+  include: [id, label, value, state, meta, status]
+}
+
+familyGenerations = family <> @project {
+  format: "generations"
+  focus: selfNode
+  include: [id, label, value, state, meta, status]
+}
+
+familySummary = family <> @project {
+  format: "summary"
+  focus: selfNode
+  include: [id, label, status, value, state, meta, counts]
+}
+
+familyList = family <> @project {
+  format: "list"
+  focus: selfNode
+  include: [id, label, type, status, value, state, meta]
+}
+
+familyTree = family <> @project {
+  format: "tree"
+  focus: selfNode
+  include: [id, label, value, state, meta, children]
+}

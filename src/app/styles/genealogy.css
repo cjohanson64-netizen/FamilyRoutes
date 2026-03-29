@@ -1,0 +1,1265 @@
+:root {
+  color-scheme: dark;
+
+  --gene-bg: #0f1115;
+  --gene-panel: #171b24;
+  --gene-border: #273042;
+  --gene-card: #202838;
+  --gene-card-selected: #2e3a57;
+  --gene-text: #f5f7fb;
+  --gene-soft: #a5afc1;
+  --gene-accent: #8fb4ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--gene-bg);
+  color: var(--gene-text);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.spacer {
+  border-top: 1px solid #273042;
+}
+
+.genealogy-root {
+  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  background: var(--gene-bg);
+  overflow: hidden;
+}
+
+.genealogy-header {
+  flex: 0 0 auto;
+  margin-bottom: 18px;
+}
+
+.genealogy-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.genealogy-header-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.genealogy-hidden-input {
+  display: none;
+}
+
+.genealogy-header h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.genealogy-header p {
+  margin: 8px 0 0;
+  color: var(--gene-soft);
+}
+
+.genealogy-error {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #2a1717;
+  border: 1px solid #5b2d2d;
+  color: #ffd7d7;
+}
+
+.genealogy-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.9fr) minmax(280px, 0.72fr);
+  gap: 16px;
+  overflow: hidden;
+}
+
+.genealogy-main-column {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1.35fr) minmax(260px, 0.9fr);
+  gap: 16px;
+  overflow: hidden;
+}
+
+.genealogy-bottom-panels {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  overflow: hidden;
+}
+
+.genealogy-view-column {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.genealogy-panel {
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--gene-border);
+  border-radius: 18px;
+  background: var(--gene-panel);
+  padding: 18px;
+}
+
+.genealogy-panel h2,
+.genealogy-panel h3 {
+  margin-top: 0;
+}
+
+.genealogy-panel-scroll {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+.genealogy-panel-tree-arena {
+  padding: 20px;
+}
+
+.genealogy-panel-detail,
+.genealogy-panel-query,
+.genealogy-panel-side {
+  min-height: 0;
+}
+
+.genealogy-panel-side {
+  height: 100%;
+}
+
+.genealogy-panel-tree-arena .genealogy-panel-scroll {
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  padding-right: 0;
+  padding-bottom: 0;
+}
+
+.tree-arena-header {
+  margin-bottom: 10px;
+}
+
+.tree-arena-header h2 {
+  margin-bottom: 6px;
+}
+
+.tree-arena-header p,
+.query-panel-subtitle {
+  margin: 0;
+  color: var(--gene-soft);
+  line-height: 1.45;
+}
+
+.family-tree-arena {
+  display: flex;
+  align-items: stretch;
+  gap: 18px;
+  min-width: max(100%, 980px);
+  width: max-content;
+  height: 100%;
+  min-height: 0;
+  padding: 2px 4px 4px;
+  position: relative;
+  z-index: 1;
+}
+
+.family-tree-canvas {
+  position: relative;
+  width: max-content;
+  min-width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.family-tree-connectors {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 0;
+}
+
+.family-tree-connectors path {
+  fill: none;
+  stroke: rgba(143, 180, 255, 0.46);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.family-tree-connectors path.is-highlighted {
+  stroke: #ffd36e;
+  stroke-width: 4;
+  filter: drop-shadow(0 0 8px rgba(255, 211, 110, 0.5));
+}
+
+.family-tree-connectors path.is-highlighted-selected {
+  stroke: #ffd36e;
+  filter: drop-shadow(0 0 8px rgba(255, 211, 110, 0.5));
+}
+
+.family-tree-connectors path.is-highlighted-common {
+  stroke: #7ce38b;
+  filter: drop-shadow(0 0 8px rgba(124, 227, 139, 0.45));
+}
+
+.family-tree-connectors path.is-highlighted-target {
+  stroke: #ff8a8a;
+  filter: drop-shadow(0 0 8px rgba(255, 138, 138, 0.45));
+}
+
+.generation-column {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 6px;
+  justify-items: center;
+  min-width: 148px;
+  height: 100%;
+  min-height: 0;
+}
+
+.generation-column-far {
+  min-width: 104px;
+}
+
+.generation-column-upper {
+  min-width: 112px;
+}
+
+.generation-column-near {
+  min-width: 122px;
+}
+
+.generation-column-focus {
+  min-width: 142px;
+}
+
+.generation-column-lower {
+  min-width: 136px;
+}
+
+.generation-column-label {
+  font-size: 0.66rem;
+  color: var(--gene-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-align: center;
+}
+
+.generation-column-people {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  gap: 4px;
+}
+
+.generation-column-family {
+  justify-content: center;
+  gap: 8px;
+}
+
+.generation-family-divider {
+  font-size: 0.62rem;
+  color: var(--gene-soft);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 0;
+}
+
+.generation-column-far .generation-column-people {
+  gap: 2px;
+}
+
+.generation-column-upper .generation-column-people {
+  gap: 3px;
+}
+
+.generation-column-near .generation-column-people {
+  gap: 4px;
+}
+
+.generation-column-lower .generation-column-people {
+  gap: 4px;
+}
+
+.generation-column-focus .generation-column-people {
+  justify-content: center;
+  gap: 2px;
+}
+
+.tree-person-card {
+  width: 100%;
+  min-height: 0;
+  padding: 6px 8px;
+  position: relative;
+  z-index: 2;
+}
+
+.tree-person-card.highlighted-card {
+  background: var(--gene-card);
+}
+
+.tree-person-card.highlighted-card-default {
+  border-color: #ffd36e;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 211, 110, 0.14),
+    rgba(255, 211, 110, 0.06)
+  );
+  box-shadow:
+    0 0 0 2px rgba(255, 211, 110, 0.72),
+    0 0 22px rgba(255, 211, 110, 0.18);
+}
+
+.tree-person-card.highlighted-card-default .person-name {
+  color: #fff2c7;
+}
+
+.tree-person-card.highlighted-card-default.focus-card,
+.tree-person-card.highlighted-card-default.selected {
+  border-color: #ffd36e;
+  box-shadow:
+    0 0 0 2px rgba(255, 211, 110, 0.82),
+    0 0 28px rgba(255, 211, 110, 0.24);
+}
+
+.tree-person-card.highlighted-card-selected {
+  border-color: #ffd36e;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 211, 110, 0.16),
+    rgba(255, 211, 110, 0.06)
+  );
+  box-shadow:
+    0 0 0 2px rgba(255, 211, 110, 0.76),
+    0 0 22px rgba(255, 211, 110, 0.18);
+}
+
+.tree-person-card.highlighted-card-selected .person-name {
+  color: #fff2c7;
+}
+
+.tree-person-card.highlighted-card-selected.focus-card,
+.tree-person-card.highlighted-card-selected.selected {
+  border-color: #ffd36e;
+  box-shadow:
+    0 0 0 2px rgba(255, 211, 110, 0.82),
+    0 0 28px rgba(255, 211, 110, 0.24);
+}
+
+.tree-person-card.highlighted-card-common {
+  border-color: #7ce38b;
+  background: linear-gradient(
+    180deg,
+    rgba(124, 227, 139, 0.18),
+    rgba(124, 227, 139, 0.06)
+  );
+  box-shadow:
+    0 0 0 2px rgba(124, 227, 139, 0.72),
+    0 0 22px rgba(124, 227, 139, 0.18);
+}
+
+.tree-person-card.highlighted-card-common .person-name {
+  color: #d9ffe0;
+}
+
+.tree-person-card.highlighted-card-common.focus-card,
+.tree-person-card.highlighted-card-common.selected {
+  border-color: #7ce38b;
+  box-shadow:
+    0 0 0 2px rgba(124, 227, 139, 0.8),
+    0 0 28px rgba(124, 227, 139, 0.24);
+}
+
+.tree-person-card.highlighted-card-target {
+  border-color: #ff8a8a;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 138, 138, 0.16),
+    rgba(255, 138, 138, 0.06)
+  );
+  box-shadow:
+    0 0 0 2px rgba(255, 138, 138, 0.72),
+    0 0 22px rgba(255, 138, 138, 0.18);
+}
+
+.tree-person-card.highlighted-card-target .person-name {
+  color: #ffdada;
+}
+
+.tree-person-card.highlighted-card-target.focus-card,
+.tree-person-card.highlighted-card-target.selected {
+  border-color: #ff8a8a;
+  box-shadow:
+    0 0 0 2px rgba(255, 138, 138, 0.8),
+    0 0 28px rgba(255, 138, 138, 0.24);
+}
+
+.generation-column-far .tree-person-card {
+  padding: 3px 5px;
+}
+
+.generation-column-upper .tree-person-card {
+  padding: 4px 6px;
+}
+
+.generation-column-near .tree-person-card {
+  padding: 5px 7px;
+}
+
+.generation-column-focus .tree-person-card {
+  padding: 7px 9px;
+}
+
+.generation-column-lower .tree-person-card {
+  padding: 5px 7px;
+}
+
+.tree-person-card.focus-card {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(16, 22, 38, 0.28);
+}
+
+.placeholder-card {
+  opacity: 0.96;
+  border-style: dashed;
+  background: rgba(32, 40, 56, 0.35);
+}
+
+.placeholder-card .tree-add-icon,
+.placeholder-card .tree-add-label {
+  color: var(--gene-soft);
+}
+
+.family-map {
+  display: grid;
+  gap: 18px;
+  margin-top: 12px;
+}
+
+.family-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.person-card {
+  border: 1px solid var(--gene-border);
+  border-radius: 14px;
+  background: var(--gene-card);
+  color: var(--gene-text);
+  padding: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.person-card.selected {
+  background: var(--gene-card-selected);
+  border-color: var(--gene-accent);
+}
+
+.person-name {
+  font-weight: 700;
+  margin-bottom: 0;
+  font-size: 0.84rem;
+}
+
+.person-role {
+  color: var(--gene-soft);
+  font-size: 0.82rem;
+}
+
+.tree-add-card-copy {
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.tree-add-icon {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--gene-border);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.tree-add-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.tree-slot-anchor {
+  width: 100%;
+}
+
+.generation-family-children {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  gap: 4px;
+  min-height: 0;
+  height: 100%;
+}
+
+.generation-column-far .person-name {
+  font-size: 0.64rem;
+}
+
+.generation-column-upper .person-name {
+  font-size: 0.7rem;
+}
+
+.generation-column-near .person-name {
+  font-size: 0.76rem;
+}
+
+.generation-column-focus .person-name {
+  font-size: 0.88rem;
+}
+
+.generation-column-lower .person-name {
+  font-size: 0.74rem;
+}
+
+.genealogy-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(7, 10, 18, 0.62);
+  backdrop-filter: blur(8px);
+  z-index: 50;
+}
+
+.genealogy-modal {
+  width: min(100%, 720px);
+  max-height: min(90vh, 920px);
+  overflow: auto;
+  border: 1px solid var(--gene-border);
+  border-radius: 20px;
+  background: var(--gene-panel);
+  padding: 20px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+.genealogy-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.genealogy-modal-subtitle {
+  margin: 6px 0 0;
+  color: var(--gene-soft);
+  line-height: 1.45;
+}
+
+.spouse-modal-warning,
+.spouse-modal-error {
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  font-size: 0.92rem;
+}
+
+.spouse-modal-warning {
+  border: 1px solid #5f5127;
+  background: rgba(94, 78, 24, 0.2);
+  color: #f4dea0;
+}
+
+.spouse-modal-error {
+  border: 1px solid #6a3232;
+  background: rgba(99, 36, 36, 0.2);
+  color: #ffd4d4;
+}
+
+.relationship-group {
+  margin-bottom: 16px;
+}
+
+.relationship-group h4 {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  color: var(--gene-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.relationship-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.relationship-item {
+  width: 100%;
+  border: 1px solid var(--gene-border);
+  border-radius: 10px;
+  background: var(--gene-card);
+  padding: 8px 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.relationship-item.selected {
+  border-color: var(--gene-accent);
+  background: var(--gene-card-selected);
+}
+
+.relationship-name {
+  font-weight: 600;
+}
+
+.relationship-role {
+  font-size: 0.8rem;
+  color: var(--gene-soft);
+}
+
+.relationship-empty {
+  color: var(--gene-soft);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.genealogy-button {
+  border: 1px solid var(--gene-accent);
+  border-radius: 10px;
+  background: var(--gene-card-selected);
+  color: var(--gene-text);
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.genealogy-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.genealogy-button.active {
+  box-shadow: inset 0 0 0 1px var(--gene-accent);
+}
+
+.genealogy-button-secondary {
+  border-color: var(--gene-border);
+  background: transparent;
+}
+
+.genealogy-inline-form {
+  display: grid;
+  gap: 12px;
+}
+
+.person-form-section {
+  display: grid;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.person-form-section:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.person-form-section-title {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--gene-text);
+}
+
+.person-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.person-form-context-card {
+  border: 1px solid var(--gene-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 12px 14px;
+}
+
+.person-form-context-title {
+  font-weight: 700;
+}
+
+.person-form-context-body {
+  margin: 6px 0 0;
+  color: var(--gene-soft);
+  line-height: 1.45;
+}
+
+.person-assignment-list {
+  display: grid;
+  gap: 10px;
+}
+
+.person-assignment-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--gene-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 10px 12px;
+}
+
+.person-assignment-name {
+  font-weight: 600;
+}
+
+.person-assignment-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.person-assignment-detail {
+  color: var(--gene-soft);
+  font-size: 0.85rem;
+}
+
+.person-assignment-select {
+  min-width: 0;
+}
+
+.genealogy-field {
+  display: grid;
+  gap: 6px;
+}
+
+.genealogy-label {
+  font-size: 0.85rem;
+  color: var(--gene-soft);
+}
+
+.genealogy-input {
+  width: 100%;
+  border: 1px solid var(--gene-border);
+  border-radius: 10px;
+  background: #10141c;
+  color: var(--gene-text);
+  padding: 10px 12px;
+  font: inherit;
+}
+
+.genealogy-textarea {
+  resize: vertical;
+}
+
+.genealogy-form-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 760px) {
+  .person-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .person-assignment-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.detail-subtitle {
+  color: var(--gene-soft);
+  margin-top: -8px;
+}
+
+.detail-block {
+  display: grid;
+  gap: 8px;
+}
+
+.detail-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.detail-action-form {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--gene-border);
+}
+
+.detail-action-form h3 {
+  margin: 0 0 12px;
+}
+
+.comparison-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.comparison-swap-button {
+  align-self: end;
+}
+
+.comparison-result-card {
+  margin-top: 14px;
+}
+
+.common-ancestor-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.common-ancestor-pill {
+  border: 1px solid var(--gene-border);
+  border-radius: 999px;
+  background: var(--gene-card);
+  color: var(--gene-text);
+  padding: 8px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.common-ancestor-pill.selected {
+  border-color: var(--gene-accent);
+  background: var(--gene-card-selected);
+  box-shadow: inset 0 0 0 1px rgba(143, 180, 255, 0.25);
+}
+
+.genealogy-section + .genealogy-section {
+  margin-top: 24px;
+}
+
+.genealogy-json {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: auto;
+  border: 1px solid var(--gene-border);
+  border-radius: 12px;
+  padding: 12px;
+  background: #10141c;
+}
+
+.person-card-header {
+  position: relative;
+  min-height: 28px;
+  padding-right: 72px;
+}
+
+.person-card-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.person-edit-button {
+  border: 1px solid var(--gene-border);
+  background: transparent;
+  color: var(--gene-soft);
+  border-radius: 8px;
+  padding: 4px 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.person-edit-button:hover {
+  color: var(--gene-text);
+  border-color: var(--gene-accent);
+}
+
+.person-delete-button {
+  border: 1px solid #5b2d2d;
+  background: transparent;
+  color: #d8a6a6;
+  border-radius: 8px;
+  padding: 4px 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+  opacity: 0.4;
+}
+
+.person-delete-button:hover {
+  color: #ffd7d7;
+  border-color: #b45b5b;
+}
+
+.person-card:hover .person-delete-button {
+  opacity: 1;
+}
+
+.person-edit-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.person-form-field {
+  display: grid;
+  gap: 6px;
+}
+
+.person-form-field span {
+  font-size: 0.9rem;
+  color: var(--gene-soft);
+}
+
+.person-form-field input,
+.person-form-field textarea {
+  width: 100%;
+  border: 1px solid var(--gene-border);
+  border-radius: 10px;
+  background: var(--gene-card);
+  color: var(--gene-text);
+  padding: 10px 12px;
+  font: inherit;
+}
+
+.person-form-field textarea {
+  resize: vertical;
+}
+
+.person-form-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.relationship-action-button.secondary {
+  background: transparent;
+}
+
+.panel-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panel-debug-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--gene-soft);
+  font-size: 0.9rem;
+}
+
+.panel-view-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.panel-depth-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.panel-depth-label {
+  color: var(--gene-soft);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.panel-depth-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.panel-depth-button {
+  border: 1px solid var(--gene-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--gene-soft);
+  padding: 6px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.panel-depth-button.active {
+  border-color: var(--gene-accent);
+  background: rgba(115, 179, 255, 0.12);
+  color: var(--gene-text);
+}
+
+.panel-view-tab {
+  border: 1px solid var(--gene-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--gene-soft);
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.panel-view-tab.active {
+  border-color: var(--gene-accent);
+  background: var(--gene-card-selected);
+  color: var(--gene-text);
+}
+
+.projection-card {
+  border: 1px solid var(--gene-border);
+  border-radius: 14px;
+  background: var(--gene-card);
+  padding: 14px;
+}
+
+.projection-card h3 {
+  margin-bottom: 10px;
+}
+
+.projection-summary-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.projection-body-text {
+  margin: 0;
+  color: var(--gene-text);
+  line-height: 1.5;
+}
+
+.projection-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.projection-summary-grid-compact {
+  margin-bottom: 0;
+}
+
+.projection-stat-card {
+  border: 1px solid var(--gene-border);
+  border-radius: 12px;
+  background: #10141c;
+  padding: 12px;
+}
+
+.projection-stat-label {
+  font-size: 0.8rem;
+  color: var(--gene-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.projection-stat-value {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.projection-list {
+  display: grid;
+  gap: 10px;
+}
+
+.projection-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  border: 1px solid var(--gene-border);
+  border-radius: 12px;
+  background: var(--gene-card);
+  color: var(--gene-text);
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.projection-list-item.selected {
+  border-color: var(--gene-accent);
+  background: var(--gene-card-selected);
+}
+
+.projection-list-main {
+  min-width: 0;
+}
+
+.projection-list-name {
+  font-weight: 600;
+}
+
+.projection-list-meta,
+.projection-list-status,
+.projection-tree-meta {
+  font-size: 0.82rem;
+  color: var(--gene-soft);
+}
+
+.projection-list-status {
+  text-transform: capitalize;
+  flex: 0 0 auto;
+}
+
+.projection-tree-card {
+  padding: 10px;
+}
+
+.tree-view {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+}
+
+.tree-node {
+  --tree-step: 28px;
+  --tree-depth: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: calc(100% - (var(--tree-depth) * var(--tree-step)));
+  margin-left: calc(var(--tree-depth) * var(--tree-step));
+  min-width: 0;
+}
+
+.tree-card {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--gene-border);
+  border-radius: 18px;
+  background: #060a16;
+  color: var(--gene-text);
+  padding: 18px 22px;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.tree-card.is-focus {
+  border-color: var(--gene-accent);
+  background: var(--gene-card-selected);
+}
+
+.tree-label {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.tree-meta {
+  margin-top: 4px;
+  color: var(--gene-soft);
+  font-size: 0.9rem;
+}
+
+.tree-children {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+@media (max-width: 1100px) {
+  .genealogy-root {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .genealogy-layout {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .genealogy-main-column {
+    grid-template-rows: minmax(0, auto) minmax(0, auto);
+    overflow: visible;
+  }
+
+  .genealogy-bottom-panels {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .genealogy-view-column {
+    overflow: visible;
+  }
+
+  .genealogy-panel {
+    overflow: visible;
+  }
+
+  .genealogy-panel-scroll {
+    overflow: visible;
+    height: auto;
+  }
+
+  .panel-view-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .projection-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .comparison-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .family-tree-arena {
+    min-width: 900px;
+    min-height: 0;
+  }
+
+  .family-tree-canvas {
+    min-height: 0;
+  }
+
+  .tree-person-card,
+  .generation-column-far .tree-person-card,
+  .generation-column-upper .tree-person-card,
+  .generation-column-near .tree-person-card,
+  .generation-column-focus .tree-person-card,
+  .generation-column-lower .tree-person-card {
+    width: 100%;
+  }
+}
