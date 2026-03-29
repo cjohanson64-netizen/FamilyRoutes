@@ -39,10 +39,7 @@ addSpouse := @action {
 }
 
 linkSpouse := @action {
-  guard:
-    (from !== to) &&
-    (@derive.edgeCount { node: from relation: "spouseOf" direction: "outgoing" } < 1) &&
-    (@derive.edgeCount { node: to relation: "spouseOf" direction: "outgoing" } < 1)
+  guard: (from !== to) && (@derive.edgeCount { node: from relation: "spouseOf" direction: "outgoing" } < 1) && (@derive.edgeCount { node: to relation: "spouseOf" direction: "outgoing" } < 1)
   pipeline:
     -> @graft.branch(from, "spouseOf", to, { active: true })
     -> @graft.branch(to, "spouseOf", from, { active: true })
@@ -61,14 +58,7 @@ addParent := @action {
 }
 
 linkParent := @action {
-  guard: (from !== to) && (
-    @derive.edgeCount {
-      node: from
-      relation: "parentOf"
-      direction: "incoming"
-      where: edge.meta.kind == "birth"
-    } < 2
-  )
+  guard: (from !== to) && (@derive.edgeCount { node: from relation: "parentOf" direction: "incoming" where: edge.meta.kind == "birth" } < 2)
   pipeline:
     -> @graft.branch(to, "parentOf", from, { kind: "birth" })
 }
