@@ -2,34 +2,7 @@ selfNode = <{ id: "SELF", semanticId: "", contract: { in: ["spouseOf"], out: ["s
 
 addChild := @action {
   pipeline:
-    -> @runtime.addNode(
-         @runtime.generateNodeId("person"),
-         {
-           semanticId: @runtime.generateValueId("person"),
-           contract: { in: ["parentOf"], out: ["spouseOf", "parentOf"] },
-           id: @runtime.generateValueId("person"),
-           type: "person",
-           firstName: payload.firstName,
-           middleNames: payload.middleNames,
-           lastName: payload.lastName,
-           suffix: payload.suffix,
-           fullName: payload.fullName,
-           dateOfBirth: payload.dateOfBirth,
-           birthPlace: payload.birthPlace,
-           lifeStatus: payload.lifeStatus,
-           deathDate: payload.deathDate,
-           deathPlace: payload.deathPlace,
-           gender: payload.gender,
-           biography: payload.biography,
-           notes: payload.notes
-         },
-         {},
-         {
-           generation: "child",
-           order: @runtime.nextOrder(),
-           role: "person"
-         }
-       )
+    -> @runtime.addNode(@runtime.generateNodeId("person"), { semanticId: @runtime.generateValueId("person"), contract: { in: ["parentOf"], out: ["spouseOf", "parentOf"] }, id: @runtime.generateValueId("person"), type: "person", firstName: payload.firstName, middleNames: payload.middleNames, lastName: payload.lastName, suffix: payload.suffix, fullName: payload.fullName, dateOfBirth: payload.dateOfBirth, birthPlace: payload.birthPlace, lifeStatus: payload.lifeStatus, deathDate: payload.deathDate, deathPlace: payload.deathPlace, gender: payload.gender, biography: payload.biography, notes: payload.notes }, {}, { generation: "child", order: @runtime.nextOrder(), role: "person" })
     -> @graft.branch(from, "parentOf", to, { kind: "birth" })
 }
 
@@ -60,30 +33,7 @@ addSpouse := @action {
     direction: "outgoing"
   } < 1
   pipeline:
-    -> @runtime.addNode(
-         @runtime.generateNodeId("person"),
-         {
-           semanticId: @runtime.generateValueId("person"),
-           contract: { in: ["spouseOf"], out: ["spouseOf", "parentOf"] },
-           id: @runtime.generateValueId("person"),
-           type: "person",
-           firstName: payload.firstName,
-           middleNames: payload.middleNames,
-           lastName: payload.lastName,
-           suffix: payload.suffix,
-           fullName: payload.fullName,
-           dateOfBirth: payload.dateOfBirth,
-           birthPlace: payload.birthPlace,
-           lifeStatus: payload.lifeStatus,
-           deathDate: payload.deathDate,
-           deathPlace: payload.deathPlace,
-           gender: payload.gender,
-           biography: payload.biography,
-           notes: payload.notes
-         },
-         {},
-         { order: @runtime.nextOrder(), role: "person" }
-       )
+    -> @runtime.addNode(@runtime.generateNodeId("person"), { semanticId: @runtime.generateValueId("person"), contract: { in: ["spouseOf"], out: ["spouseOf", "parentOf"] }, id: @runtime.generateValueId("person"), type: "person", firstName: payload.firstName, middleNames: payload.middleNames, lastName: payload.lastName, suffix: payload.suffix, fullName: payload.fullName, dateOfBirth: payload.dateOfBirth, birthPlace: payload.birthPlace, lifeStatus: payload.lifeStatus, deathDate: payload.deathDate, deathPlace: payload.deathPlace, gender: payload.gender, biography: payload.biography, notes: payload.notes }, {}, { order: @runtime.nextOrder(), role: "person" })
     -> @graft.branch(from, "spouseOf", to, { active: true })
     -> @graft.branch(to, "spouseOf", from, { active: true })
 }
@@ -106,34 +56,7 @@ addParent := @action {
     where: edge.meta.kind == "birth"
   } < 2
   pipeline:
-    -> @runtime.addNode(
-         @runtime.generateNodeId("person"),
-         {
-           semanticId: @runtime.generateValueId("person"),
-           contract: { in: ["spouseOf"], out: ["spouseOf", "parentOf"] },
-           id: @runtime.generateValueId("person"),
-           type: "person",
-           firstName: payload.firstName,
-           middleNames: payload.middleNames,
-           lastName: payload.lastName,
-           suffix: payload.suffix,
-           fullName: payload.fullName,
-           dateOfBirth: payload.dateOfBirth,
-           birthPlace: payload.birthPlace,
-           lifeStatus: payload.lifeStatus,
-           deathDate: payload.deathDate,
-           deathPlace: payload.deathPlace,
-           gender: payload.gender,
-           biography: payload.biography,
-           notes: payload.notes
-         },
-         {},
-         {
-           generation: "parent",
-           order: @runtime.nextOrder(),
-           role: "person"
-         }
-       )
+    -> @runtime.addNode(@runtime.generateNodeId("person"), { semanticId: @runtime.generateValueId("person"), contract: { in: ["spouseOf"], out: ["spouseOf", "parentOf"] }, id: @runtime.generateValueId("person"), type: "person", firstName: payload.firstName, middleNames: payload.middleNames, lastName: payload.lastName, suffix: payload.suffix, fullName: payload.fullName, dateOfBirth: payload.dateOfBirth, birthPlace: payload.birthPlace, lifeStatus: payload.lifeStatus, deathDate: payload.deathDate, deathPlace: payload.deathPlace, gender: payload.gender, biography: payload.biography, notes: payload.notes }, {}, { generation: "parent", order: @runtime.nextOrder(), role: "person" })
     -> @graft.branch(to, "parentOf", from, { kind: "birth" })
 }
 
