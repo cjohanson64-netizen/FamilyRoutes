@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { addBranch, addNode, createGraph } from "../runtime/graph";
 import {
   addTatEdge,
@@ -24,6 +25,38 @@ import {
   type GraphWorkspace,
 } from "../runtime/index";
 import { executeWhy } from "../runtime/executeWhy";
+
+function loadRuntimeSessionFromImportPayload(jsonPath: string) {
+  const payload = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+  let session = createTatRuntimeSession(payload.sourceCode);
+
+  for (const entry of payload.doneActions) {
+    const actions = entry.type === "transaction" ? entry.actions : [entry];
+
+    for (const action of actions) {
+      if (action.type === "addNode") {
+        session = addTatNode(session, action.payload);
+        continue;
+      }
+
+      if (action.type === "addEdge") {
+        session = addTatEdge(session, action.payload);
+        continue;
+      }
+
+      if (action.type === "updateNodeValue") {
+        session = updateTatNodeValue(session, action.payload);
+        continue;
+      }
+
+      if (action.type === "action") {
+        session = applyTatAction(session, action.payload);
+      }
+    }
+  }
+
+  return session;
+}
 
 function createWorkspaceWithTarget(
   targetState: Record<string, any>,
@@ -1459,9 +1492,10 @@ childNode = <{ id: "child", type: "person", fullName: "Child" }>
 siblingNode = <{ id: "sibling", type: "person", fullName: "Sibling" }>
 auntNode = <{ id: "aunt", type: "person", fullName: "Aunt" }>
 cousinNode = <{ id: "cousin", type: "person", fullName: "Cousin" }>
+cousinChildNode = <{ id: "cousinChild", type: "person", fullName: "Cousin Child" }>
 
 @seed:
-  nodes: [selfNode, spouseNode, parentNode, grandNode, childNode, siblingNode, auntNode, cousinNode]
+  nodes: [selfNode, spouseNode, parentNode, grandNode, childNode, siblingNode, auntNode, cousinNode, cousinChildNode]
   edges: [
     [selfNode : "spouseOf" : spouseNode],
     [spouseNode : "spouseOf" : selfNode],
@@ -1470,6 +1504,7 @@ cousinNode = <{ id: "cousin", type: "person", fullName: "Cousin" }>
     [grandNode : "parentOf" : parentNode],
     [grandNode : "parentOf" : auntNode],
     [auntNode : "parentOf" : cousinNode],
+    [cousinNode : "parentOf" : cousinChildNode],
     [selfNode : "parentOf" : childNode],
     [spouseNode : "parentOf" : childNode]
   ]
@@ -1693,7 +1728,17 @@ family := @seed
     });
   assert.deepEqual(cousinResult.relationship, {
     type: "cousin",
-    label: "cousin",
+    degree: 1,
+    removed: 0,
+    label: "first cousin",
+  });
+  assert.deepEqual(cousinResult.sharedAncestor, {
+    id: "grandNode",
+    label: "Grand",
+  });
+  assert.deepEqual(cousinResult.depths, {
+    from: 2,
+    to: 2,
   });
   assert.deepEqual(cousinResult.pathNodeIds, [
     "cousinNode",
@@ -1703,16 +1748,16 @@ family := @seed
     "selfNode",
   ]);
   assert.deepEqual(cousinResult.pathEdges, [
-    { from: "auntNode", relation: "parentOf", to: "cousinNode" },
     { from: "grandNode", relation: "parentOf", to: "auntNode" },
+    { from: "auntNode", relation: "parentOf", to: "cousinNode" },
     { from: "grandNode", relation: "parentOf", to: "parentNode" },
     { from: "parentNode", relation: "parentOf", to: "selfNode" },
   ]);
   assert.deepEqual(cousinResult.highlight, {
     selectedPathNodeIds: ["cousinNode", "auntNode"],
     selectedPathEdges: [
-      { from: "auntNode", relation: "parentOf", to: "cousinNode" },
       { from: "grandNode", relation: "parentOf", to: "auntNode" },
+      { from: "auntNode", relation: "parentOf", to: "cousinNode" },
     ],
     commonNodeIds: ["grandNode"],
     commonEdges: [],
@@ -1722,6 +1767,34 @@ family := @seed
       { from: "parentNode", relation: "parentOf", to: "selfNode" },
     ],
   });
+
+  const cousinRemovedResult = compareTatRelationship(session, {
+      graphBinding: "family",
+      fromId: "cousinChildNode",
+      toId: "selfNode",
+    });
+  assert.deepEqual(cousinRemovedResult.relationship, {
+    type: "cousin",
+    degree: 1,
+    removed: 1,
+    label: "first cousin once removed",
+  });
+  assert.deepEqual(cousinRemovedResult.sharedAncestor, {
+    id: "grandNode",
+    label: "Grand",
+  });
+  assert.deepEqual(cousinRemovedResult.depths, {
+    from: 3,
+    to: 2,
+  });
+  assert.deepEqual(cousinRemovedResult.pathNodeIds, [
+    "cousinChildNode",
+    "cousinNode",
+    "auntNode",
+    "grandNode",
+    "parentNode",
+    "selfNode",
+  ]);
 
   assert.deepEqual(nieceResult.highlight, {
     selectedPathNodeIds: ["selfNode", "parentNode"],
@@ -1786,6 +1859,199 @@ family := @seed
   });
   assert.deepEqual(unknownResult.pathNodeIds, []);
   assert.deepEqual(unknownResult.pathEdges, []);
+});
+
+test("relationship comparison derives cousin degree and removed labels from shared ancestor depth", () => {
+  const source = `
+rootNode = <{ id: "root", type: "person", fullName: "Root" }>
+leftParentNode = <{ id: "leftParent", type: "person", fullName: "Left Parent" }>
+rightParentNode = <{ id: "rightParent", type: "person", fullName: "Right Parent" }>
+leftGrandNode = <{ id: "leftGrand", type: "person", fullName: "Left Grand" }>
+rightGrandNode = <{ id: "rightGrand", type: "person", fullName: "Right Grand" }>
+leftGreatNode = <{ id: "leftGreat", type: "person", fullName: "Left Great" }>
+rightGreatNode = <{ id: "rightGreat", type: "person", fullName: "Right Great" }>
+secondCousinLeftNode = <{ id: "secondCousinLeft", type: "person", fullName: "Second Cousin Left" }>
+secondCousinRightNode = <{ id: "secondCousinRight", type: "person", fullName: "Second Cousin Right" }>
+thirdCousinLeftNode = <{ id: "thirdCousinLeft", type: "person", fullName: "Third Cousin Left" }>
+thirdCousinRightNode = <{ id: "thirdCousinRight", type: "person", fullName: "Third Cousin Right" }>
+
+@seed:
+  nodes: [
+    rootNode,
+    leftParentNode,
+    rightParentNode,
+    leftGrandNode,
+    rightGrandNode,
+    leftGreatNode,
+    rightGreatNode,
+    secondCousinLeftNode,
+    secondCousinRightNode,
+    thirdCousinLeftNode,
+    thirdCousinRightNode
+  ]
+  edges: [
+    [rootNode : "parentOf" : leftParentNode],
+    [rootNode : "parentOf" : rightParentNode],
+    [leftParentNode : "parentOf" : leftGrandNode],
+    [rightParentNode : "parentOf" : rightGrandNode],
+    [leftGrandNode : "parentOf" : secondCousinLeftNode],
+    [rightGrandNode : "parentOf" : secondCousinRightNode],
+    [secondCousinLeftNode : "parentOf" : leftGreatNode],
+    [secondCousinRightNode : "parentOf" : rightGreatNode],
+    [leftGreatNode : "parentOf" : thirdCousinLeftNode],
+    [rightGreatNode : "parentOf" : thirdCousinRightNode]
+  ]
+  state: {}
+  meta: {}
+  root: rootNode
+
+family := @seed
+`;
+
+  const session = createTatRuntimeSession(source);
+
+  const secondCousinResult = compareTatRelationship(session, {
+    graphBinding: "family",
+    fromId: "secondCousinLeftNode",
+    toId: "secondCousinRightNode",
+  });
+  assert.deepEqual(secondCousinResult.relationship, {
+    type: "cousin",
+    degree: 2,
+    removed: 0,
+    label: "second cousin",
+  });
+  assert.deepEqual(secondCousinResult.sharedAncestor, {
+    id: "rootNode",
+    label: "Root",
+  });
+  assert.deepEqual(secondCousinResult.depths, {
+    from: 3,
+    to: 3,
+  });
+
+  const thirdCousinResult = compareTatRelationship(session, {
+    graphBinding: "family",
+    fromId: "leftGreatNode",
+    toId: "rightGreatNode",
+  });
+  assert.deepEqual(thirdCousinResult.relationship, {
+    type: "cousin",
+    degree: 3,
+    removed: 0,
+    label: "third cousin",
+  });
+  assert.deepEqual(thirdCousinResult.sharedAncestor, {
+    id: "rootNode",
+    label: "Root",
+  });
+  assert.deepEqual(thirdCousinResult.depths, {
+    from: 4,
+    to: 4,
+  });
+});
+
+test("relationship comparison stays correct against the imported five-generation demo family", () => {
+  const session = loadRuntimeSessionFromImportPayload(
+    "../src/app/examples/5-generation-demo.json",
+  );
+  const graph = session.state.graphs.get("family");
+  assert.ok(graph);
+
+  const nodes = [...graph.nodes.values()];
+  const nodeIdByName = new Map(
+    nodes.map((node) => [String((node.value as Record<string, unknown>).fullName), node.id]),
+  );
+
+  function compareByName(fromName: string, toName: string) {
+    const fromId = nodeIdByName.get(fromName);
+    const toId = nodeIdByName.get(toName);
+    assert.ok(fromId, `Missing node for ${fromName}`);
+    assert.ok(toId, `Missing node for ${toName}`);
+
+    return compareTatRelationship(session, {
+      graphBinding: "family",
+      fromId,
+      toId,
+    });
+  }
+
+  assert.deepEqual(compareByName("Harper Brooks", "Noah Reed").relationship, {
+    type: "spouse",
+    label: "spouse",
+  });
+  assert.deepEqual(compareByName("Noah Reed", "Ella Reed").relationship, {
+    type: "ancestor",
+    label: "parent",
+    depth: 1,
+  });
+  assert.deepEqual(compareByName("Ella Reed", "Noah Reed").relationship, {
+    type: "descendant",
+    label: "child",
+    depth: 1,
+  });
+  assert.deepEqual(compareByName("Ella Reed", "Mason Reed").relationship, {
+    type: "sibling",
+    label: "sibling",
+  });
+  assert.deepEqual(compareByName("Noah Reed", "Owen Brooks").relationship, {
+    type: "stepParent",
+    label: "step-parent",
+  });
+  assert.deepEqual(compareByName("Emma Reed", "Caleb Reed").relationship, {
+    type: "cousin",
+    degree: 1,
+    removed: 0,
+    label: "first cousin",
+  });
+  assert.deepEqual(compareByName("Michael Bennett", "Noah Reed").relationship, {
+    type: "cousin",
+    degree: 1,
+    removed: 0,
+    label: "first cousin",
+  });
+  assert.deepEqual(compareByName("Julia Bennett", "Noah Reed").relationship, {
+    type: "cousin",
+    degree: 1,
+    removed: 0,
+    label: "first cousin",
+  });
+
+  assert.deepEqual(compareByName("Walter Hayes", "Noah Reed").relationship, {
+    type: "ancestor",
+    label: "great grandparent",
+    depth: 3,
+  });
+  assert.deepEqual(compareByName("Noah Reed", "Jack Hayes").relationship, {
+    type: "cousin",
+    degree: 1,
+    removed: 0,
+    label: "first cousin",
+  });
+  assert.deepEqual(compareByName("Emma Reed", "Noah Reed").relationship, {
+    type: "cousin",
+    degree: 1,
+    removed: 1,
+    label: "first cousin once removed",
+  });
+  assert.deepEqual(compareByName("Caleb Reed", "Noah Reed").relationship, {
+    type: "cousin",
+    degree: 1,
+    removed: 1,
+    label: "first cousin once removed",
+  });
+  assert.deepEqual(compareByName("Noah Reed", "Henry Hayes").relationship, {
+    type: "cousin",
+    degree: 1,
+    removed: 1,
+    label: "first cousin once removed",
+  });
+  assert.deepEqual(compareByName("Noah Reed", "Isabel Hayes").relationship, {
+    type: "cousin",
+    degree: 1,
+    removed: 1,
+    label: "first cousin once removed",
+  });
 });
 
 test("common ancestor query returns deduped shared ancestors with count and stable order", () => {

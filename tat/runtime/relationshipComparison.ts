@@ -68,6 +68,16 @@ export interface RuntimeRelationshipComparisonResult {
       | "unknown";
     label: string;
     depth?: number;
+    degree?: number;
+    removed?: number;
+  };
+  sharedAncestor?: {
+    id: string;
+    label: string;
+  };
+  depths?: {
+    from: number;
+    to: number;
   };
   pathNodeIds: string[];
   pathEdges: Array<{
@@ -368,29 +378,35 @@ export function compareGenealogyRelationship(
     );
   }
 
-  const cousinPath = findCousinPath(graph, from.id, to.id);
+  const cousinPath = findCousinPath(
+    graph,
+    from.id,
+    to.id,
+    selectedCommonAncestorId,
+  );
   if (cousinPath) {
-    return maybeOverrideWithSelectedCommonAncestor(
-      graph,
+    return buildComparisonResult(
+      from,
+      to,
       {
-        from,
-        to,
-        relationship: {
         type: "cousin",
-        label: "cousin",
-        },
-        pathNodeIds: cousinPath.nodeIds,
-        pathEdges: cousinPath.edges,
-        highlight: buildSplitHighlight(
-          cousinPath.nodeIds.slice(0, 2),
-          cousinPath.edges.slice(0, 2),
-          cousinPath.nodeIds[2] ? [cousinPath.nodeIds[2]] : [],
-          cousinPath.nodeIds.slice(3),
-          cousinPath.edges.slice(2),
-        ),
+        label: cousinPath.label,
+        degree: cousinPath.degree,
+        removed: cousinPath.removed,
       },
-      selectedCommonAncestorId,
+      cousinPath.nodeIds,
+      cousinPath.edges,
+      cousinPath.highlight,
       availableCommonAncestors,
+      cousinPath.selectedCommonAncestorId,
+      {
+        id: cousinPath.sharedAncestor.id,
+        label: cousinPath.sharedAncestor.label,
+      },
+      {
+        from: cousinPath.depths.from,
+        to: cousinPath.depths.to,
+      },
     );
   }
 
@@ -452,11 +468,15 @@ function buildComparisonResult(
   highlight: RuntimeRelationshipComparisonResult["highlight"],
   availableCommonAncestors: RuntimeRelationshipComparisonResult["availableCommonAncestors"],
   selectedCommonAncestorId?: string,
+  sharedAncestor?: RuntimeRelationshipComparisonResult["sharedAncestor"],
+  depths?: RuntimeRelationshipComparisonResult["depths"],
 ): RuntimeRelationshipComparisonResult {
   return {
     from,
     to,
     relationship,
+    ...(sharedAncestor ? { sharedAncestor } : {}),
+    ...(depths ? { depths } : {}),
     pathNodeIds,
     pathEdges,
     highlight,
@@ -778,6 +798,13 @@ function collectSharedAncestors(
         return depthDelta;
       }
 
+      const maxDepthDelta =
+        Math.max(left.fromDepth, left.toDepth) -
+        Math.max(right.fromDepth, right.toDepth);
+      if (maxDepthDelta !== 0) {
+        return maxDepthDelta;
+      }
+
       const leftOrder = Number(left.meta?.order ?? Number.MAX_SAFE_INTEGER);
       const rightOrder = Number(right.meta?.order ?? Number.MAX_SAFE_INTEGER);
       if (leftOrder !== rightOrder) {
@@ -956,37 +983,92 @@ function findCousinPath(
   graph: Graph,
   fromId: string,
   toId: string,
+  selectedCommonAncestorId?: string,
 ): {
   nodeIds: string[];
   edges: Array<{ from: string; relation: string; to: string }>;
+  highlight: RuntimeRelationshipComparisonResult["highlight"];
+  degree: number;
+  removed: number;
+  label: string;
+  sharedAncestor: {
+    id: string;
+    label: string;
+  };
+  depths: {
+    from: number;
+    to: number;
+  };
+  selectedCommonAncestorId?: string;
 } | null {
-  for (const fromParentId of getParentIds(graph, fromId)) {
-    for (const toParentId of getParentIds(graph, toId)) {
-      const siblingPath = findSiblingPath(graph, fromParentId, toParentId);
-      if (!siblingPath) {
-        continue;
-      }
+  const candidate = selectCousinAncestor(
+    graph,
+    fromId,
+    toId,
+    selectedCommonAncestorId,
+  );
+  if (!candidate) {
+    return null;
+  }
 
-      return {
-        nodeIds: [fromId, ...siblingPath.nodeIds, toId],
-        edges: [
-          {
-            from: fromParentId,
-            relation: PRIMARY_PARENT_RELATION,
-            to: fromId,
-          },
-          ...siblingPath.edges,
-          {
-            from: toParentId,
-            relation: PRIMARY_PARENT_RELATION,
-            to: toId,
-          },
-        ],
-      };
+  const overridePath = buildCommonAncestorOverridePath(
+    graph,
+    fromId,
+    toId,
+    candidate.id,
+  );
+  if (!overridePath) {
+    return null;
+  }
+
+  const degree = Math.min(candidate.fromDepth, candidate.toDepth) - 1;
+  const removed = Math.abs(candidate.fromDepth - candidate.toDepth);
+
+  return {
+    nodeIds: overridePath.pathNodeIds,
+    edges: overridePath.pathEdges,
+    highlight: overridePath.highlight,
+    degree,
+    removed,
+    label: formatCousinLabel(degree, removed),
+    sharedAncestor: {
+      id: candidate.id,
+      label: candidate.label,
+    },
+    depths: {
+      from: candidate.fromDepth,
+      to: candidate.toDepth,
+    },
+    ...(selectedCommonAncestorId && candidate.id === selectedCommonAncestorId
+      ? { selectedCommonAncestorId }
+      : {}),
+  };
+}
+
+function selectCousinAncestor(
+  graph: Graph,
+  fromId: string,
+  toId: string,
+  selectedCommonAncestorId?: string,
+): ReturnType<typeof collectSharedAncestors>[number] | null {
+  const eligibleAncestors = collectSharedAncestors(graph, fromId, toId).filter(
+    (ancestor) => ancestor.fromDepth >= 2 && ancestor.toDepth >= 2,
+  );
+
+  if (eligibleAncestors.length === 0) {
+    return null;
+  }
+
+  if (selectedCommonAncestorId) {
+    const selectedAncestor = eligibleAncestors.find(
+      (ancestor) => ancestor.id === selectedCommonAncestorId,
+    );
+    if (selectedAncestor) {
+      return selectedAncestor;
     }
   }
 
-  return null;
+  return eligibleAncestors[0];
 }
 
 function findNieceNephewPath(
@@ -1241,6 +1323,51 @@ function formatDescendantLabel(depth: number): string {
   if (depth === 2) return "grandchild";
   if (depth === 3) return "great grandchild";
   return `great x${depth - 2} grandchild`;
+}
+
+function formatCousinLabel(degree: number, removed: number): string {
+  const degreeLabel = `${formatOrdinal(degree)} cousin`;
+
+  if (removed === 0) {
+    return degreeLabel;
+  }
+
+  if (removed === 1) {
+    return `${degreeLabel} once removed`;
+  }
+
+  if (removed === 2) {
+    return `${degreeLabel} twice removed`;
+  }
+
+  return `${degreeLabel} ${removed} times removed`;
+}
+
+function formatOrdinal(value: number): string {
+  switch (value) {
+    case 1:
+      return "first";
+    case 2:
+      return "second";
+    case 3:
+      return "third";
+    case 4:
+      return "fourth";
+    case 5:
+      return "fifth";
+    case 6:
+      return "sixth";
+    case 7:
+      return "seventh";
+    case 8:
+      return "eighth";
+    case 9:
+      return "ninth";
+    case 10:
+      return "tenth";
+    default:
+      return `${value}th`;
+  }
 }
 
 function computeNodeLabel(node: GraphNode): string {

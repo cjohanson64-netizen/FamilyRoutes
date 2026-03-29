@@ -1,5 +1,8 @@
 # 🧬 FamilyRoutes (Powered by TryAngleTree)
 
+🔗 Live App: https://family-routes.vercel.app/
+📦 GitHub: https://github.com/cjohanson64-netizen/FamilyRoutes
+
 ## Overview
 
 This project is an interactive genealogy application built on top of **TryAngleTree (TAT)** — a semantic graph language and runtime designed to model relationships as first-class, structured data.
@@ -18,12 +21,58 @@ This separation allows the system to remain:
 
 ---
 
+## ✨ What Makes This Different
+
+Unlike traditional genealogy apps that rely on static tree structures and UI-driven logic, FamilyRoutes:
+
+- models relationships as a graph
+- computes connections dynamically
+- explains *why* two people are related
+
+This enables features like:
+- path-based relationship visualization
+- common ancestor selection
+- deterministic relationship computation
+
+---
+
+## 📸 Preview
+
+### Relationship Comparison Flow
+
+1. Select a person  
+![Select](./screenshots/selected-person.png)
+
+2. Choose a target  
+![Target](./screenshots/target-person.png)
+
+3. Override the common ancestor  
+![Ancestor](./screenshots/common-ancestor.png)
+
+4. Visualize the relationship path  
+
+---
+
 ## 🧠 Core Idea
 
 > The UI does not *decide* relationships.
 > The graph *defines* them.
 
 Everything in this app — parents, spouses, siblings, cousins, in-laws — is derived from a **graph of nodes and edges**, not from UI assumptions.
+
+---
+
+## 🎯 Why This Matters
+
+Most applications embed logic directly in UI components, making them fragile and hard to reason about.
+
+FamilyRoutes demonstrates a different approach:
+
+- Move logic into a structured graph layer
+- Let the UI simply render results
+- Make relationships deterministic and explainable
+
+This pattern applies beyond genealogy — to any system where relationships and rules must remain consistent and traceable.
 
 ---
 
@@ -275,6 +324,17 @@ TAT approach:
 
 ---
 
+## 🛠 Run Locally
+
+```bash
+git clone https://github.com/cjohanson64-netizen/FamilyRoutes
+cd family-routes
+npm install
+npm run dev
+```
+
+---
+
 ## 📌 Future Ideas
 
 * marriage timelines (start/end)
@@ -293,7 +353,7 @@ Built by Carl Johanson
 
 ## 💡 Final Thought
 
-This app is not just a family tree.
+This app is not just a family tree — it's a relationship engine.
 
 It is a demonstration that:
 

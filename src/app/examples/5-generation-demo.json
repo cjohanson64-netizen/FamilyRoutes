@@ -1,0 +1,2228 @@
+{
+  "version": 3,
+  "sourceCode": "selfNode = <{ id: \"SELF\", semanticId: \"\", contract: { in: [\"spouseOf\"], out: [\"spouseOf\", \"parentOf\"] }, type: \"person\", fullName: \"SELF\", dateOfBirth: \"\", biography: \"\" }>\n\naddChild := @action {\n  pipeline:\n    -> @runtime.addNode(@runtime.generateNodeId(\"person\"), { semanticId: @runtime.generateValueId(\"person\"), contract: { in: [\"parentOf\"], out: [\"spouseOf\", \"parentOf\"] }, id: @runtime.generateValueId(\"person\"), type: \"person\", firstName: payload.firstName, middleNames: payload.middleNames, lastName: payload.lastName, suffix: payload.suffix, fullName: payload.fullName, dateOfBirth: payload.dateOfBirth, birthPlace: payload.birthPlace, lifeStatus: payload.lifeStatus, deathDate: payload.deathDate, deathPlace: payload.deathPlace, gender: payload.gender, biography: payload.biography, notes: payload.notes }, {}, { generation: \"child\", order: @runtime.nextOrder(), role: \"person\" })\n    -> @graft.branch(from, \"parentOf\", to, { kind: \"birth\" })\n}\n\nclaimChild := @action {\n  pipeline:\n    -> @graft.branch(from, \"parentOf\", to, { kind: \"birth\" })\n}\n\nclaimStepChild := @action {\n  pipeline:\n    -> @graft.branch(from, \"parentOf\", to, { kind: \"step\" })\n}\n\nunclaimChild := @action {\n  pipeline:\n    -> @prune.branch(from, \"parentOf\", to, { kind: \"birth\" })\n}\n\nunclaimStepChild := @action {\n  pipeline:\n    -> @prune.branch(from, \"parentOf\", to, { kind: \"step\" })\n}\n\naddSpouse := @action {\n  guard: @derive.edgeCount {\n    node: from\n    relation: \"spouseOf\"\n    direction: \"outgoing\"\n  } < 1\n  pipeline:\n    -> @runtime.addNode(@runtime.generateNodeId(\"person\"), { semanticId: @runtime.generateValueId(\"person\"), contract: { in: [\"spouseOf\"], out: [\"spouseOf\", \"parentOf\"] }, id: @runtime.generateValueId(\"person\"), type: \"person\", firstName: payload.firstName, middleNames: payload.middleNames, lastName: payload.lastName, suffix: payload.suffix, fullName: payload.fullName, dateOfBirth: payload.dateOfBirth, birthPlace: payload.birthPlace, lifeStatus: payload.lifeStatus, deathDate: payload.deathDate, deathPlace: payload.deathPlace, gender: payload.gender, biography: payload.biography, notes: payload.notes }, {}, { order: @runtime.nextOrder(), role: \"person\" })\n    -> @graft.branch(from, \"spouseOf\", to, { active: true })\n    -> @graft.branch(to, \"spouseOf\", from, { active: true })\n}\n\nlinkSpouse := @action {\n  guard: (from !== to) && (@derive.edgeCount { node: from relation: \"spouseOf\" direction: \"outgoing\" } < 1) && (@derive.edgeCount { node: to relation: \"spouseOf\" direction: \"outgoing\" } < 1)\n  pipeline:\n    -> @graft.branch(from, \"spouseOf\", to, { active: true })\n    -> @graft.branch(to, \"spouseOf\", from, { active: true })\n}\n\naddParent := @action {\n  guard: @derive.edgeCount {\n    node: from\n    relation: \"parentOf\"\n    direction: \"incoming\"\n    where: edge.meta.kind == \"birth\"\n  } < 2\n  pipeline:\n    -> @runtime.addNode(@runtime.generateNodeId(\"person\"), { semanticId: @runtime.generateValueId(\"person\"), contract: { in: [\"spouseOf\"], out: [\"spouseOf\", \"parentOf\"] }, id: @runtime.generateValueId(\"person\"), type: \"person\", firstName: payload.firstName, middleNames: payload.middleNames, lastName: payload.lastName, suffix: payload.suffix, fullName: payload.fullName, dateOfBirth: payload.dateOfBirth, birthPlace: payload.birthPlace, lifeStatus: payload.lifeStatus, deathDate: payload.deathDate, deathPlace: payload.deathPlace, gender: payload.gender, biography: payload.biography, notes: payload.notes }, {}, { generation: \"parent\", order: @runtime.nextOrder(), role: \"person\" })\n    -> @graft.branch(to, \"parentOf\", from, { kind: \"birth\" })\n}\n\nlinkParent := @action {\n  guard: (from !== to) && (@derive.edgeCount { node: from relation: \"parentOf\" direction: \"incoming\" where: edge.meta.kind == \"birth\" } < 2)\n  pipeline:\n    -> @graft.branch(to, \"parentOf\", from, { kind: \"birth\" })\n}\n\neditPerson := @action {\n  pipeline:\n    -> @runtime.updateNodeValue(to, { firstName: payload.firstName, middleNames: payload.middleNames, lastName: payload.lastName, suffix: payload.suffix, fullName: payload.fullName, dateOfBirth: payload.dateOfBirth, birthPlace: payload.birthPlace, lifeStatus: payload.lifeStatus, deathDate: payload.deathDate, deathPlace: payload.deathPlace, gender: payload.gender, biography: payload.biography, notes: payload.notes })\n}\n\ndeletePerson := @action {\n  guard: @derive.meta {\n    node: to\n    key: \"role\"\n  } !== \"root\"\n  pipeline:\n    -> @runtime.deleteNode(to)\n}\n\n@seed:\n  nodes: [selfNode]\n  edges: []\n  state: {}\n  meta: {}\n  root: selfNode\n\nfamily := @seed\n  -> @graft.meta(selfNode, \"status\", focus)\n  -> @graft.meta(selfNode, \"generation\", 0)\n  -> @graft.meta(selfNode, \"role\", \"root\")\n  -> @graft.meta(selfNode, \"order\", 1)\n\nfamilyGraph = family <> @project(format: \"graph\")\n\nfamilyDetail = family <> @project {\n  format: \"detail\"\n  focus: selfNode\n  include: [id, label, type, value, state, meta, relationships, status]\n}\n\nfamilyRelationships = family <> @project {\n  format: \"relationships\"\n  focus: selfNode\n  include: [id, label, value, state, meta, status]\n}\n\nfamilySiblings = family <> @project {\n  format: \"siblings\"\n  focus: selfNode\n  include: [id, label, value, state, meta, status]\n}\n\nfamilyAncestors = family <> @project {\n  format: \"ancestors\"\n  focus: selfNode\n  depth: 2\n  include: [id, label, value, state, meta, status]\n}\n\nfamilyDescendants = family <> @project {\n  format: \"descendants\"\n  focus: selfNode\n  depth: 2\n  include: [id, label, value, state, meta, status]\n}\n\nfamilyGenerations = family <> @project {\n  format: \"generations\"\n  focus: selfNode\n  include: [id, label, value, state, meta, status]\n}\n\nfamilySummary = family <> @project {\n  format: \"summary\"\n  focus: selfNode\n  include: [id, label, status, value, state, meta, counts]\n}\n\nfamilyList = family <> @project {\n  format: \"list\"\n  focus: selfNode\n  include: [id, label, type, status, value, state, meta]\n}\n\nfamilyTree = family <> @project {\n  format: \"tree\"\n  focus: selfNode\n  include: [id, label, value, state, meta, children]\n}\n",
+  "doneActions": [
+    {
+      "type": "transaction",
+      "label": "Five Generation Blended Family Demo",
+      "actions": [
+        {
+          "type": "action",
+          "payload": {
+            "graphBinding": "family",
+            "from": "selfNode",
+            "action": "editPerson",
+            "target": "selfNode",
+            "payload": {
+              "firstName": "Noah",
+              "middleNames": "",
+              "lastName": "Reed",
+              "suffix": "",
+              "fullName": "Noah Reed",
+              "dateOfBirth": "2012-01-14",
+              "birthPlace": "",
+              "lifeStatus": "unknown",
+              "deathDate": "",
+              "deathPlace": "",
+              "gender": "",
+              "biography": "Main parent node for testing spouse, ex-spouse, child, and stepchild relationships.",
+              "notes": ""
+            }
+          }
+        },
+        {
+          "type": "updateNodeValue",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "selfNode",
+            "patch": {
+              "id": "p25",
+              "semanticId": "person_noah_reed",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Noah",
+              "middleNames": null,
+              "lastName": "Reed",
+              "suffix": null,
+              "fullName": "Noah Reed",
+              "dateOfBirth": "2012-01-14",
+              "biography": "Main parent node for testing spouse, ex-spouse, child, and stepchild relationships.",
+              "tags": [
+                "person",
+                "parentGeneration",
+                "focusParent"
+              ]
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p1",
+            "value": {
+              "id": "p1",
+              "semanticId": "person_arthur_bennett",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Arthur",
+              "middleNames": null,
+              "lastName": "Bennett",
+              "suffix": null,
+              "fullName": "Arthur Bennett",
+              "dateOfBirth": "1932-04-11",
+              "biography": "Patriarch of the Bennett branch.",
+              "tags": [
+                "person",
+                "greatGreatGrandparent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 1,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p2",
+            "value": {
+              "id": "p2",
+              "semanticId": "person_rose_bennett",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Rose",
+              "middleNames": null,
+              "lastName": "Bennett",
+              "suffix": null,
+              "fullName": "Rose Bennett",
+              "dateOfBirth": "1934-09-02",
+              "biography": "Matriarch of the Bennett branch.",
+              "tags": [
+                "person",
+                "greatGreatGrandparent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 2,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p3",
+            "value": {
+              "id": "p3",
+              "semanticId": "person_walter_hayes",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Walter",
+              "middleNames": null,
+              "lastName": "Hayes",
+              "suffix": null,
+              "fullName": "Walter Hayes",
+              "dateOfBirth": "1931-01-27",
+              "biography": "Patriarch of the Hayes branch.",
+              "tags": [
+                "person",
+                "greatGreatGrandparent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 3,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p4",
+            "value": {
+              "id": "p4",
+              "semanticId": "person_elaine_hayes",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Elaine",
+              "middleNames": null,
+              "lastName": "Hayes",
+              "suffix": null,
+              "fullName": "Elaine Hayes",
+              "dateOfBirth": "1936-06-18",
+              "biography": "Matriarch of the Hayes branch.",
+              "tags": [
+                "person",
+                "greatGreatGrandparent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 4,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p5",
+            "value": {
+              "id": "p5",
+              "semanticId": "person_thomas_bennett",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Thomas",
+              "middleNames": null,
+              "lastName": "Bennett",
+              "suffix": null,
+              "fullName": "Thomas Bennett",
+              "dateOfBirth": "1956-02-03",
+              "biography": "Son of Arthur and Rose; grandfather generation.",
+              "tags": [
+                "person",
+                "greatGrandparent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 5,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p6",
+            "value": {
+              "id": "p6",
+              "semanticId": "person_linda_bennett",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Linda",
+              "middleNames": null,
+              "lastName": "Bennett",
+              "suffix": null,
+              "fullName": "Linda Bennett",
+              "dateOfBirth": "1958-11-14",
+              "biography": "Spouse of Thomas Bennett.",
+              "tags": [
+                "person",
+                "greatGrandparent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 6,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p7",
+            "value": {
+              "id": "p7",
+              "semanticId": "person_diane_bennett",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Diane",
+              "middleNames": null,
+              "lastName": "Mercer",
+              "suffix": null,
+              "fullName": "Diane Mercer",
+              "dateOfBirth": "1960-05-09",
+              "biography": "Sister of Thomas; aunt line for the older generation.",
+              "tags": [
+                "person",
+                "greatGrandparent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 7,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p8",
+            "value": {
+              "id": "p8",
+              "semanticId": "person_edward_mercer",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Edward",
+              "middleNames": null,
+              "lastName": "Mercer",
+              "suffix": null,
+              "fullName": "Edward Mercer",
+              "dateOfBirth": "1959-08-23",
+              "biography": "Spouse of Diane Mercer.",
+              "tags": [
+                "person",
+                "greatGrandparent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 8,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p9",
+            "value": {
+              "id": "p9",
+              "semanticId": "person_patricia_hayes",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Patricia",
+              "middleNames": null,
+              "lastName": "Hayes",
+              "suffix": null,
+              "fullName": "Patricia Hayes",
+              "dateOfBirth": "1957-03-12",
+              "biography": "Daughter of Walter and Elaine Hayes.",
+              "tags": [
+                "person",
+                "greatGrandparent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 9,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p10",
+            "value": {
+              "id": "p10",
+              "semanticId": "person_richard_hayes",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Richard",
+              "middleNames": null,
+              "lastName": "Hayes",
+              "suffix": null,
+              "fullName": "Richard Hayes",
+              "dateOfBirth": "1955-12-30",
+              "biography": "Brother of Patricia Hayes.",
+              "tags": [
+                "person",
+                "greatGrandparent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 10,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p11",
+            "value": {
+              "id": "p11",
+              "semanticId": "person_susan_hayes",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Susan",
+              "middleNames": null,
+              "lastName": "Hayes",
+              "suffix": null,
+              "fullName": "Susan Hayes",
+              "dateOfBirth": "1958-07-07",
+              "biography": "Spouse of Richard Hayes.",
+              "tags": [
+                "person",
+                "greatGrandparent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 11,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p12",
+            "value": {
+              "id": "p12",
+              "semanticId": "person_michael_bennett",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Michael",
+              "middleNames": null,
+              "lastName": "Bennett",
+              "suffix": null,
+              "fullName": "Michael Bennett",
+              "dateOfBirth": "1980-04-25",
+              "biography": "Older son of Thomas and Linda; uncle branch.",
+              "tags": [
+                "person",
+                "grandparent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 12,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p13",
+            "value": {
+              "id": "p13",
+              "semanticId": "person_nora_bennett",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Nora",
+              "middleNames": null,
+              "lastName": "Bennett",
+              "suffix": null,
+              "fullName": "Nora Bennett",
+              "dateOfBirth": "1982-09-17",
+              "biography": "Spouse of Michael Bennett.",
+              "tags": [
+                "person",
+                "grandparent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 13,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p14",
+            "value": {
+              "id": "p14",
+              "semanticId": "person_julia_bennett",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Julia",
+              "middleNames": null,
+              "lastName": "Bennett",
+              "suffix": null,
+              "fullName": "Julia Bennett",
+              "dateOfBirth": "1984-01-08",
+              "biography": "Daughter of Thomas and Linda; aunt branch.",
+              "tags": [
+                "person",
+                "grandparent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 14,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p15",
+            "value": {
+              "id": "p15",
+              "semanticId": "person_daniel_clark",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Daniel",
+              "middleNames": null,
+              "lastName": "Clark",
+              "suffix": null,
+              "fullName": "Daniel Clark",
+              "dateOfBirth": "1983-03-19",
+              "biography": "Spouse of Julia Bennett.",
+              "tags": [
+                "person",
+                "grandparent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 15,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p16",
+            "value": {
+              "id": "p16",
+              "semanticId": "person_olivia_bennett",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Olivia",
+              "middleNames": null,
+              "lastName": "Bennett",
+              "suffix": null,
+              "fullName": "Olivia Bennett",
+              "dateOfBirth": "1986-11-03",
+              "biography": "Youngest child of Thomas and Linda; older-generation cousin line.",
+              "tags": [
+                "person",
+                "grandparent",
+                "focusAncestor"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 16,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p17",
+            "value": {
+              "id": "p17",
+              "semanticId": "person_peter_hayes",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Peter",
+              "middleNames": null,
+              "lastName": "Hayes",
+              "suffix": null,
+              "fullName": "Peter Hayes",
+              "dateOfBirth": "1981-02-22",
+              "biography": "Older son of Patricia Hayes; uncle branch.",
+              "tags": [
+                "person",
+                "grandparent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 17,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p18",
+            "value": {
+              "id": "p18",
+              "semanticId": "person_grace_hayes",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Grace",
+              "middleNames": null,
+              "lastName": "Hayes",
+              "suffix": null,
+              "fullName": "Grace Hayes",
+              "dateOfBirth": "1984-06-04",
+              "biography": "Younger daughter of Patricia Hayes; older-generation cousin line.",
+              "tags": [
+                "person",
+                "grandparent",
+                "focusAncestor"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 18,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p19",
+            "value": {
+              "id": "p19",
+              "semanticId": "person_ethan_ward",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Ethan",
+              "middleNames": null,
+              "lastName": "Ward",
+              "suffix": null,
+              "fullName": "Ethan Ward",
+              "dateOfBirth": "1983-12-16",
+              "biography": "Former spouse of Grace Hayes; biological father of Ava and Liam.",
+              "tags": [
+                "person",
+                "grandparent",
+                "exSpouse"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 19,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p20",
+            "value": {
+              "id": "p20",
+              "semanticId": "person_zoe_hayes",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Zoe",
+              "middleNames": null,
+              "lastName": "Hayes",
+              "suffix": null,
+              "fullName": "Zoe Hayes",
+              "dateOfBirth": "1988-10-28",
+              "biography": "Youngest daughter of Patricia Hayes; aunt branch.",
+              "tags": [
+                "person",
+                "grandparent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 20,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p21",
+            "value": {
+              "id": "p21",
+              "semanticId": "person_henry_hayes",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Henry",
+              "middleNames": null,
+              "lastName": "Hayes",
+              "suffix": null,
+              "fullName": "Henry Hayes",
+              "dateOfBirth": "1982-08-10",
+              "biography": "Cousin-uncle branch from Richard and Susan.",
+              "tags": [
+                "person",
+                "grandparent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 21,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p22",
+            "value": {
+              "id": "p22",
+              "semanticId": "person_isabel_hayes",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Isabel",
+              "middleNames": null,
+              "lastName": "Hayes",
+              "suffix": null,
+              "fullName": "Isabel Hayes",
+              "dateOfBirth": "1985-12-21",
+              "biography": "Sibling of Henry Hayes; aunt branch.",
+              "tags": [
+                "person",
+                "grandparent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 22,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p23",
+            "value": {
+              "id": "p23",
+              "semanticId": "person_emma_reed",
+              "contract": {
+                "in": [
+                  "spouseOf",
+                  "parentOf"
+                ],
+                "out": [
+                  "spouseOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Emma",
+              "middleNames": null,
+              "lastName": "Reed",
+              "suffix": null,
+              "fullName": "Emma Reed",
+              "dateOfBirth": "2008-04-13",
+              "biography": "Daughter of Michael and Nora.",
+              "tags": [
+                "person",
+                "parentGeneration",
+                "cousin"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 23,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p24",
+            "value": {
+              "id": "p24",
+              "semanticId": "person_caleb_reed",
+              "contract": {
+                "in": [
+                  "spouseOf",
+                  "parentOf"
+                ],
+                "out": [
+                  "spouseOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Caleb",
+              "middleNames": null,
+              "lastName": "Reed",
+              "suffix": null,
+              "fullName": "Caleb Reed",
+              "dateOfBirth": "2010-09-09",
+              "biography": "Son of Julia and Daniel.",
+              "tags": [
+                "person",
+                "parentGeneration",
+                "cousin"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 24,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p26",
+            "value": {
+              "id": "p26",
+              "semanticId": "person_ava_ward",
+              "contract": {
+                "in": [
+                  "spouseOf",
+                  "parentOf"
+                ],
+                "out": [
+                  "spouseOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Ava",
+              "middleNames": null,
+              "lastName": "Ward",
+              "suffix": null,
+              "fullName": "Ava Ward",
+              "dateOfBirth": "2011-07-05",
+              "biography": "Biological daughter of Grace Hayes and Ethan Ward.",
+              "tags": [
+                "person",
+                "parentGeneration",
+                "halfSiblingLine"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 26,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p27",
+            "value": {
+              "id": "p27",
+              "semanticId": "person_liam_ward",
+              "contract": {
+                "in": [
+                  "spouseOf",
+                  "parentOf"
+                ],
+                "out": [
+                  "spouseOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Liam",
+              "middleNames": null,
+              "lastName": "Ward",
+              "suffix": null,
+              "fullName": "Liam Ward",
+              "dateOfBirth": "2013-03-20",
+              "biography": "Biological son of Grace Hayes and Ethan Ward.",
+              "tags": [
+                "person",
+                "parentGeneration",
+                "halfSiblingLine"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 27,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p28",
+            "value": {
+              "id": "p28",
+              "semanticId": "person_sophia_lane",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Sophia",
+              "middleNames": null,
+              "lastName": "Lane",
+              "suffix": null,
+              "fullName": "Sophia Lane",
+              "dateOfBirth": "2012-11-02",
+              "biography": "Former spouse of Noah Reed; biological mother of Ella and Mason.",
+              "tags": [
+                "person",
+                "parentGeneration",
+                "exSpouse"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 28,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p29",
+            "value": {
+              "id": "p29",
+              "semanticId": "person_harper_brooks",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Harper",
+              "middleNames": null,
+              "lastName": "Brooks",
+              "suffix": null,
+              "fullName": "Harper Brooks",
+              "dateOfBirth": "2014-05-18",
+              "biography": "Current spouse of Noah Reed; biological mother of Chloe and Owen.",
+              "tags": [
+                "person",
+                "parentGeneration",
+                "focusParent"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 29,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p30",
+            "value": {
+              "id": "p30",
+              "semanticId": "person_milo_brooks",
+              "contract": {
+                "in": [
+                  "spouseOf"
+                ],
+                "out": [
+                  "spouseOf",
+                  "parentOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Milo",
+              "middleNames": null,
+              "lastName": "Brooks",
+              "suffix": null,
+              "fullName": "Milo Brooks",
+              "dateOfBirth": "2013-08-27",
+              "biography": "Former spouse of Harper Brooks; biological father of Owen.",
+              "tags": [
+                "person",
+                "parentGeneration",
+                "exSpouse"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 30,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p31",
+            "value": {
+              "id": "p31",
+              "semanticId": "person_mia_hayes",
+              "contract": {
+                "in": [
+                  "spouseOf",
+                  "parentOf"
+                ],
+                "out": [
+                  "spouseOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Mia",
+              "middleNames": null,
+              "lastName": "Hayes",
+              "suffix": null,
+              "fullName": "Mia Hayes",
+              "dateOfBirth": "2015-06-06",
+              "biography": "Daughter of Zoe Hayes.",
+              "tags": [
+                "person",
+                "parentGeneration",
+                "cousin"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 31,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p32",
+            "value": {
+              "id": "p32",
+              "semanticId": "person_jack_hayes",
+              "contract": {
+                "in": [
+                  "spouseOf",
+                  "parentOf"
+                ],
+                "out": [
+                  "spouseOf"
+                ]
+              },
+              "type": "person",
+              "firstName": "Jack",
+              "middleNames": null,
+              "lastName": "Hayes",
+              "suffix": null,
+              "fullName": "Jack Hayes",
+              "dateOfBirth": "2011-10-15",
+              "biography": "Son of Henry Hayes.",
+              "tags": [
+                "person",
+                "parentGeneration",
+                "cousin"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 32,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p33",
+            "value": {
+              "id": "p33",
+              "semanticId": "person_ella_reed",
+              "contract": {
+                "in": [
+                  "parentOf"
+                ],
+                "out": []
+              },
+              "type": "person",
+              "firstName": "Ella",
+              "middleNames": null,
+              "lastName": "Reed",
+              "suffix": null,
+              "fullName": "Ella Reed",
+              "dateOfBirth": "2034-02-11",
+              "biography": "Biological child of Noah Reed and Sophia Lane.",
+              "tags": [
+                "person",
+                "child"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 33,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p34",
+            "value": {
+              "id": "p34",
+              "semanticId": "person_mason_reed",
+              "contract": {
+                "in": [
+                  "parentOf"
+                ],
+                "out": []
+              },
+              "type": "person",
+              "firstName": "Mason",
+              "middleNames": null,
+              "lastName": "Reed",
+              "suffix": null,
+              "fullName": "Mason Reed",
+              "dateOfBirth": "2036-07-29",
+              "biography": "Biological child of Noah Reed and Sophia Lane.",
+              "tags": [
+                "person",
+                "child"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 34,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p35",
+            "value": {
+              "id": "p35",
+              "semanticId": "person_owen_brooks",
+              "contract": {
+                "in": [
+                  "parentOf"
+                ],
+                "out": []
+              },
+              "type": "person",
+              "firstName": "Owen",
+              "middleNames": null,
+              "lastName": "Brooks",
+              "suffix": null,
+              "fullName": "Owen Brooks",
+              "dateOfBirth": "2033-09-08",
+              "biography": "Biological child of Harper Brooks and Milo Brooks; stepchild in Noah Reed's household.",
+              "tags": [
+                "person",
+                "child",
+                "stepChild"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 35,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addNode",
+          "payload": {
+            "graphBinding": "family",
+            "nodeId": "p36",
+            "value": {
+              "id": "p36",
+              "semanticId": "person_chloe_reed",
+              "contract": {
+                "in": [
+                  "parentOf"
+                ],
+                "out": []
+              },
+              "type": "person",
+              "firstName": "Chloe",
+              "middleNames": null,
+              "lastName": "Reed",
+              "suffix": null,
+              "fullName": "Chloe Reed",
+              "dateOfBirth": "2038-12-03",
+              "biography": "Biological child of Noah Reed and Harper Brooks.",
+              "tags": [
+                "person",
+                "child"
+              ]
+            },
+            "state": {},
+            "meta": {
+              "order": 36,
+              "role": "person"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p1",
+            "relation": "spouseOf",
+            "object": "p2",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p2",
+            "relation": "spouseOf",
+            "object": "p1",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p5",
+            "relation": "spouseOf",
+            "object": "p6",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p6",
+            "relation": "spouseOf",
+            "object": "p5",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p7",
+            "relation": "spouseOf",
+            "object": "p8",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p8",
+            "relation": "spouseOf",
+            "object": "p7",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p10",
+            "relation": "spouseOf",
+            "object": "p11",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p11",
+            "relation": "spouseOf",
+            "object": "p10",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p12",
+            "relation": "spouseOf",
+            "object": "p13",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p13",
+            "relation": "spouseOf",
+            "object": "p12",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p14",
+            "relation": "spouseOf",
+            "object": "p15",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p15",
+            "relation": "spouseOf",
+            "object": "p14",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "selfNode",
+            "relation": "spouseOf",
+            "object": "p28",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p28",
+            "relation": "spouseOf",
+            "object": "selfNode",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "selfNode",
+            "relation": "spouseOf",
+            "object": "p29",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p29",
+            "relation": "spouseOf",
+            "object": "selfNode",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p18",
+            "relation": "spouseOf",
+            "object": "p19",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p19",
+            "relation": "spouseOf",
+            "object": "p18",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p29",
+            "relation": "spouseOf",
+            "object": "p30",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p30",
+            "relation": "spouseOf",
+            "object": "p29",
+            "meta": {
+              "active": true
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p18",
+            "relation": "spouseOf",
+            "object": "p19",
+            "meta": {
+              "active": false,
+              "endedBy": "divorce"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p19",
+            "relation": "spouseOf",
+            "object": "p18",
+            "meta": {
+              "active": false,
+              "endedBy": "divorce"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "selfNode",
+            "relation": "spouseOf",
+            "object": "p28",
+            "meta": {
+              "active": false,
+              "endedBy": "divorce"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p28",
+            "relation": "spouseOf",
+            "object": "selfNode",
+            "meta": {
+              "active": false,
+              "endedBy": "divorce"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p29",
+            "relation": "spouseOf",
+            "object": "p30",
+            "meta": {
+              "active": false,
+              "endedBy": "divorce"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p30",
+            "relation": "spouseOf",
+            "object": "p29",
+            "meta": {
+              "active": false,
+              "endedBy": "divorce"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p1",
+            "relation": "parentOf",
+            "object": "p5",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p2",
+            "relation": "parentOf",
+            "object": "p5",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p1",
+            "relation": "parentOf",
+            "object": "p7",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p2",
+            "relation": "parentOf",
+            "object": "p7",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p3",
+            "relation": "parentOf",
+            "object": "p9",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p4",
+            "relation": "parentOf",
+            "object": "p9",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p3",
+            "relation": "parentOf",
+            "object": "p10",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p4",
+            "relation": "parentOf",
+            "object": "p10",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p5",
+            "relation": "parentOf",
+            "object": "p12",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p6",
+            "relation": "parentOf",
+            "object": "p12",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p5",
+            "relation": "parentOf",
+            "object": "p14",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p6",
+            "relation": "parentOf",
+            "object": "p14",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p1",
+            "relation": "parentOf",
+            "object": "p16",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p2",
+            "relation": "parentOf",
+            "object": "p16",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p9",
+            "relation": "parentOf",
+            "object": "p17",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p9",
+            "relation": "parentOf",
+            "object": "p18",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p9",
+            "relation": "parentOf",
+            "object": "p20",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p10",
+            "relation": "parentOf",
+            "object": "p21",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p11",
+            "relation": "parentOf",
+            "object": "p21",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p10",
+            "relation": "parentOf",
+            "object": "p22",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p11",
+            "relation": "parentOf",
+            "object": "p22",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p12",
+            "relation": "parentOf",
+            "object": "p23",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p13",
+            "relation": "parentOf",
+            "object": "p23",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p14",
+            "relation": "parentOf",
+            "object": "p24",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p15",
+            "relation": "parentOf",
+            "object": "p24",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p16",
+            "relation": "parentOf",
+            "object": "selfNode",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p18",
+            "relation": "parentOf",
+            "object": "selfNode",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p18",
+            "relation": "parentOf",
+            "object": "p26",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p19",
+            "relation": "parentOf",
+            "object": "p26",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p18",
+            "relation": "parentOf",
+            "object": "p27",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p19",
+            "relation": "parentOf",
+            "object": "p27",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "selfNode",
+            "relation": "parentOf",
+            "object": "p33",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p28",
+            "relation": "parentOf",
+            "object": "p33",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "selfNode",
+            "relation": "parentOf",
+            "object": "p34",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p28",
+            "relation": "parentOf",
+            "object": "p34",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p29",
+            "relation": "parentOf",
+            "object": "p35",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p30",
+            "relation": "parentOf",
+            "object": "p35",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "selfNode",
+            "relation": "parentOf",
+            "object": "p36",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p29",
+            "relation": "parentOf",
+            "object": "p36",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p20",
+            "relation": "parentOf",
+            "object": "p31",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p17",
+            "relation": "parentOf",
+            "object": "p32",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p21",
+            "relation": "parentOf",
+            "object": "p32",
+            "meta": {
+              "kind": "birth"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "selfNode",
+            "relation": "parentOf",
+            "object": "p35",
+            "meta": {
+              "kind": "step"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p29",
+            "relation": "parentOf",
+            "object": "p33",
+            "meta": {
+              "kind": "step"
+            }
+          }
+        },
+        {
+          "type": "addEdge",
+          "payload": {
+            "graphBinding": "family",
+            "subject": "p29",
+            "relation": "parentOf",
+            "object": "p34",
+            "meta": {
+              "kind": "step"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "undoneActions": [],
+  "focus": {
+    "graphBinding": "family",
+    "nodeId": "selfNode"
+  }
+}

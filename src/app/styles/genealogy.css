@@ -22,6 +22,17 @@ body {
   font-family: Inter, system-ui, sans-serif;
 }
 
+.tat-brand {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.tat-logo {
+  width: 50px;
+  border-radius: 50%;
+}
+
 .spacer {
   border-top: 1px solid #273042;
 }
@@ -53,6 +64,25 @@ body {
   gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  align-items: flex-end;
+}
+
+.genealogy-header-picker {
+  display: grid;
+  gap: 6px;
+  min-width: 220px;
+}
+
+.genealogy-header-picker-label {
+  font-size: 0.72rem;
+  color: var(--gene-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.genealogy-header-select {
+  min-width: 220px;
+  max-width: 320px;
 }
 
 .genealogy-hidden-input {
@@ -1243,6 +1273,21 @@ body {
 
   .comparison-controls {
     grid-template-columns: 1fr;
+  }
+
+  .genealogy-header-row {
+    flex-direction: column;
+  }
+
+  .genealogy-header-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .genealogy-header-picker,
+  .genealogy-header-select {
+    width: 100%;
+    max-width: none;
   }
 
   .family-tree-arena {

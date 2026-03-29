@@ -6,6 +6,7 @@ import QueryPanel from "./components/QueryPanel";
 import RelationshipPanel from "./components/RelationshipPanel";
 import genealogySource from "./features/genealogy/tat/genealogy-demo.tat?raw";
 import { useTatRuntime } from "./hooks/useTatRuntime";
+import Logo from "./assets/TAT-logo.svg"
 import "./styles/genealogy.css";
 
 const GENEALOGY_STORAGE_KEY = "tat-genealogy-runtime";
@@ -307,6 +308,12 @@ export default function GenealogyApp() {
 
   const peopleById = useMemo(() => {
     return new Map(people.map((node) => [node.id, node]));
+  }, [people]);
+
+  const peopleAlphabetical = useMemo(() => {
+    return [...people].sort((left, right) =>
+      getSortableNodeLabel(left).localeCompare(getSortableNodeLabel(right)),
+    );
   }, [people]);
 
   const activeNodeId = detail?.node?.id ?? selectedNodeId;
@@ -1150,6 +1157,12 @@ export default function GenealogyApp() {
     closeTreeAddModal();
     resetRuntime?.();
     setSelectedNodeId("selfNode");
+    setComparisonPair({
+      fromId: "selfNode",
+      toId: "",
+    });
+    setSelectedCommonAncestorId("");
+    setTreeComparisonFocusId(null);
     setImportError(null);
   }
 
@@ -1210,6 +1223,12 @@ export default function GenealogyApp() {
 
       closeTreeAddModal();
       setSelectedNodeId("selfNode");
+      setComparisonPair({
+        fromId: "selfNode",
+        toId: "",
+      });
+      setSelectedCommonAncestorId("");
+      setTreeComparisonFocusId(null);
       setImportError(null);
     } catch (err) {
       console.error(err);
@@ -1221,12 +1240,31 @@ export default function GenealogyApp() {
     <main className="genealogy-root">
       <header className="genealogy-header">
         <div className="genealogy-header-row">
+          <div className="tat-brand">
+            <img className="tat-logo" src={Logo} alt="" />
           <div>
-            <h1>RootLine</h1>
+            <h1>FamilyRoutes</h1>
             <p>A family tree and genealogy graph powered by TAT.</p>
+          </div>
           </div>
 
           <div className="genealogy-header-actions">
+            <label className="genealogy-header-picker">
+              <span className="genealogy-header-picker-label">Select Person</span>
+              <select
+                className="genealogy-input genealogy-header-select"
+                value={activeNodeId ?? ""}
+                onChange={(event) => handleSelectPerson(event.target.value)}
+              >
+                <option value="">Choose a person</option>
+                {peopleAlphabetical.map((person) => (
+                  <option key={`jump-${person.id}`} value={person.id}>
+                    {getSortableNodeLabel(person)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
             <input
               ref={importInputRef}
               type="file"

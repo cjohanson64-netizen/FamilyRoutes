@@ -1,4 +1,4 @@
-selfNode = <{ id: "SELF", semanticId: "", contract: { in: ["spouseOf"], out: ["spouseOf", "parentOf"] }, type: "person", fullName: "SELF", dateOfBirth: "", biography: "" }>
+selfNode = <{ id: "SELF", semanticId: "", contract: { in: ["spouseOf"], out: ["spouseOf", "parentOf"] }, type: "person", fullName: "EDIT ME", dateOfBirth: "", biography: "" }>
 
 addChild := @action {
   pipeline:
